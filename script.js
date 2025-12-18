@@ -259,25 +259,80 @@
         const nav = document.getElementById('nav-menu');
         if (!toggle || !nav) return;
 
+        // Initial ARIA state based on viewport
+        const isMobile = () => window.innerWidth <= 768;
+        toggle.setAttribute('aria-expanded', 'false');
+        nav.setAttribute('aria-hidden', isMobile() ? 'true' : 'false');
+
+        // Ensure links are removed from tab order when collapsed on mobile
+        const navLinks = nav.querySelectorAll('a');
+        const setLinksTabbable = (allow) => {
+            navLinks.forEach(link => {
+                if (!isMobile()) {
+                    link.removeAttribute('tabindex');
+                    return;
+                }
+                if (allow) link.removeAttribute('tabindex');
+                else link.setAttribute('tabindex', '-1');
+            });
+        };
+
+        // apply initial tab state
+        setLinksTabbable(false);
+
         const setOpen = (open) => {
             document.body.classList.toggle('nav-open', open);
             toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            nav.setAttribute('aria-hidden', open ? 'false' : 'true');
+            setLinksTabbable(open);
+
+            if (open) {
+                // move focus to first link for keyboard users
+                const firstLink = nav.querySelector('a');
+                if (firstLink) firstLink.focus();
+            }
         };
 
-        toggle.addEventListener('click', () => {
+        toggle.addEventListener('click', (e) => {
+            // prevent document click handler from closing immediately
+            e.stopPropagation();
             const isOpen = document.body.classList.contains('nav-open');
             setOpen(!isOpen);
         });
+
+        // Ensure toggle doesn't close menu when clicking inside
+        nav.addEventListener('click', (e) => e.stopPropagation());
 
         // Close when a link is clicked (mobile)
         nav.querySelectorAll('a').forEach(link => {
             link.addEventListener('click', () => setOpen(false));
         });
 
-        // Ensure nav is closed when resizing larger
+        // Close on Escape key when menu is open
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.body.classList.contains('nav-open')) {
+                setOpen(false);
+            }
+        });
+
+        // Close if clicking outside nav/menu while open
+        document.addEventListener('click', (e) => {
+            if (document.body.classList.contains('nav-open')) {
+                if (!nav.contains(e.target) && !toggle.contains(e.target)) {
+                    setOpen(false);
+                }
+            }
+        });
+
+        // Ensure nav is closed when resizing larger or update aria-hidden
         window.addEventListener('resize', () => {
             if (window.innerWidth > 768 && document.body.classList.contains('nav-open')) {
                 setOpen(false);
+            }
+            // update aria-hidden flag when crossing breakpoint
+            nav.setAttribute('aria-hidden', isMobile() ? 'true' : 'false');
+            if (!isMobile()) {
+                toggle.setAttribute('aria-expanded', 'false');
             }
         });
     };
@@ -298,6 +353,7 @@
                 initSmoothScroll();
                 initArtworkModal();
                 initActiveNavigation();
+                initMobileNav();
                 initContactForm();
             });
         } else {
@@ -305,6 +361,7 @@
             initSmoothScroll();
             initArtworkModal();
             initActiveNavigation();
+            initMobileNav();
             initContactForm();
         }
     };
